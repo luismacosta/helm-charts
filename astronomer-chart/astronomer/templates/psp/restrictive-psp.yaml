@@ -1,7 +1,7 @@
 {{- if .Values.global.pspEnabled }}
 # All purpose catch all restrictive policy
 # If a specific policy is not applied this one will be
-apiVersion: policy/v1beta1
+apiVersion: policy/v1
 kind: PodSecurityPolicy
 metadata:
   name: {{ .Release.Name }}-restrictive

@@ -3,7 +3,7 @@
 ################################
 ## Private CA PSP
 #################################
-apiVersion: policy/v1beta1
+apiVersion: policy/v1
 kind: PodSecurityPolicy
 metadata:
   name: {{ .Release.Name }}-private-ca

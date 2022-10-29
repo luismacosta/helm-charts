@@ -11,7 +11,7 @@ EG: https://www.astronomer.io/docs/enterprise/v0.25/resources/version-compatibil
 
 {{- define "apiVersion.PodDisruptionBudget" -}}
 {{- if or (semverCompare "<1.21-0" .Capabilities.KubeVersion.Version) (.Values.global.useLegacyPodDisruptionBudget) -}}
-policy/v1beta1
+policy/v1
 {{- else -}}
 policy/v1
 {{- end -}}{{- end -}}
