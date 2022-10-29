@@ -1,3 +1,7 @@
+https://www.ververica.com/getting-started <br />
+https://docs.ververica.com/getting_started/installation.html <br />
+
+
 ➜ helm repo add ververica https://charts.ververica.com <br />
 ➜ helm search repo  ververica <br />
 
