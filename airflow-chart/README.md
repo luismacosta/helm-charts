@@ -53,7 +53,8 @@ secret/airflow-redis-password unchanged <br />
 secret/airflow-broker-url unchanged <br />
 job.batch/airflow-create-user configured <br />
 job.batch/airflow-run-airflow-migrations configured <br />
-
+<br />
+<br />
 
 
 ➜  kubectl get pods -n airflow    
