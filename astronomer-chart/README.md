@@ -1,4 +1,5 @@
 https://docs.astronomer.io/software <br />
+https://docs.astronomer.io/software/install-aws <br />
 
 ➜ helm repo add astronomer https://helm.astronomer.io <br />
 ➜ helm search repo  astronomer <br />
