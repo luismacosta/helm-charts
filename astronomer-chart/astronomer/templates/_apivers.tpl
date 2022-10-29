@@ -11,9 +11,9 @@ EG: https://www.astronomer.io/docs/enterprise/v0.25/resources/version-compatibil
 
 {{- define "apiVersion.PodDisruptionBudget" -}}
 {{- if or (semverCompare "<1.21-0" .Capabilities.KubeVersion.Version) (.Values.global.useLegacyPodDisruptionBudget) -}}
-policy/v1
+policy/v1beta1
 {{- else -}}
-policy/v1
+policy/v1beta1
 {{- end -}}{{- end -}}
 
 {{- define "apiVersion.DaemonSet" -}}
@@ -54,7 +54,7 @@ batch/v1
 
 {{- define "apiVersion.batch.cronjob" -}}
 {{- if or (semverCompare "<1.21-0" .Capabilities.KubeVersion.Version) (.Values.global.useLegacyBatchCronJob) -}}
-batch/v1beta1
+batch/v1
 {{- else -}}
 batch/v1
 {{- end -}}
