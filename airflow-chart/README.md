@@ -1,11 +1,13 @@
 
-https://airflow.apache.org/docs/helm-chart/stable/index.html
+https://airflow.apache.org/docs/helm-chart/stable/index.html \n
 https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database
 https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html
 
 
 ➜ helm repo add apache-airflow https://airflow.apache.org
+
 ➜ helm search repo  apache-airflow
+
 ➜ helm fetch --version 1.7.0 apache-airflow/airflow
 
 ➜ helm template . --name-template airflow -f values.yaml --output-dir '/Users/luis.costa/projects/stuff/batatas/➜ yamls'
