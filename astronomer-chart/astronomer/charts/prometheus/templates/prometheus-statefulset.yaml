@@ -1,0 +1,171 @@
+################################
+## Prometheus StatefulSet
+#################################
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ template "prometheus.fullname" . }}
+  labels:
+    tier: monitoring
+    component: {{ template "prometheus.name" . }}
+    chart: {{ template "prometheus.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicas }}
+  serviceName: {{ template "prometheus.fullname" . }}
+  selector:
+    matchLabels:
+      tier: monitoring
+      component: {{ template "prometheus.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+{{- with .Values.podLabels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+        tier: monitoring
+        component: {{ template "prometheus.name" . }}
+        release: {{ .Release.Name }}
+        app: {{ template "prometheus.name" . }}
+        version: {{ .Chart.Version }}
+      annotations:
+{{- if .Values.global.istio.enabled }}
+        sidecar.istio.io/proxyCPU: "500m"
+        sidecar.istio.io/proxyMemory: "400Mi"
+{{- end }}
+    spec:
+      nodeSelector:
+{{ toYaml (default .Values.global.platformNodePool.nodeSelector .Values.nodeSelector) | indent 8 }}
+      affinity:
+{{ toYaml (default .Values.global.platformNodePool.affinity .Values.affinity) | indent 8 }}
+      tolerations:
+{{ toYaml (default .Values.global.platformNodePool.tolerations .Values.tolerations) | indent 8 }}
+      restartPolicy: Always
+      serviceAccountName: {{ template "prometheus.fullname" . }}
+{{- include "prometheus.imagePullSecrets" . | indent 6 }}
+      containers:
+        {{- if .Values.global.authSidecar.enabled  }}
+        - name: auth-proxy
+          image: "{{ .Values.global.authSidecar.repository }}:{{ .Values.global.authSidecar.tag }}"
+          imagePullPolicy: {{ .Values.global.authSidecar.pullPolicy }}
+          {{- if .Values.global.authSidecar.resources }}
+          resources: {{- toYaml .Values.global.authSidecar.resources | nindent 12 }}
+          {{- end }}
+          ports:
+          - containerPort: {{ .Values.global.authSidecar.port }}
+            name: auth-proxy
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.global.authSidecar.port }}
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.global.authSidecar.port }}
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+          - mountPath: /etc/nginx/conf.d/
+            name: prometheus-sidecar-conf
+        {{- end }}
+        - name: configmap-reloader
+          args:
+            - --webhook-url=http://localhost:9090/-/reload
+            - --volume-dir=/etc/prometheus/alerts.d
+            - --volume-dir=/etc/prometheus/config
+          image: {{ include "configReloader.image" . }}
+          imagePullPolicy: {{ .Values.images.prometheus.pullPolicy }}
+          resources:
+{{ toYaml .Values.configMapReloader.resources | indent 12 }}
+          volumeMounts:
+          - name: alert-volume
+            mountPath: /etc/prometheus/alerts.d
+          - name: prometheus-config-volume
+            mountPath: /etc/prometheus/config
+
+        - name: prometheus
+          image: {{ include "prometheus.image" . }}
+          imagePullPolicy: {{ .Values.images.prometheus.pullPolicy }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          args:
+            - "--config.file=/etc/prometheus/config/prometheus.yaml"
+            - "--storage.tsdb.path={{ .Values.dataDir }}"
+            - "--storage.tsdb.retention.time={{ .Values.retention }}"
+            {{- if .Values.enableLifecycle }}
+            - "--web.enable-lifecycle"
+            {{- end }}
+            {{- if .Values.global.baseDomain }}
+            - "--web.external-url=https://prometheus.{{ .Values.global.baseDomain }}"
+            {{- end }}
+          volumeMounts:
+            - name: prometheus-config-volume
+              mountPath: /etc/prometheus/config
+            - name: alert-volume
+              mountPath: /etc/prometheus/alerts.d
+            - name: data
+              mountPath: {{ .Values.dataDir }}
+          ports:
+            - name: prometheus-data
+              containerPort: {{ .Values.ports.http }}
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: {{ .Values.ports.http }}
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: {{ .Values.ports.http }}
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      volumes:
+        {{- if .Values.global.authSidecar.enabled }}
+        - name: prometheus-sidecar-conf
+          configMap:
+            name: {{ template "prometheus.fullname" . }}-nginx-conf
+        {{- end }}
+        - name: prometheus-config-volume
+          configMap:
+            name: {{ template "prometheus.fullname" . }}-config
+            items:
+              - key: config
+                path: prometheus.yaml
+        - name: alert-volume
+          configMap:
+            name: {{ template "prometheus.fullname" . }}-alerts
+            items:
+              - key: alerts
+                path: alerts.yaml
+  {{- if not .Values.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+  {{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        {{- if .Values.persistence.annotations }}
+        annotations:
+          {{- toYaml .Values.persistence.annotations | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{ include "prometheus.storageClass" . }}
+  {{- end }}

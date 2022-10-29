@@ -1,0 +1,121 @@
+################################
+## Astronomer Commander Deployment
+#################################
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-commander
+  labels:
+    component: commander
+    tier: astronomer
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+  {{ if .Values.global.enableArgoCDAnnotation }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  {{- end }}
+spec:
+  replicas: {{ .Values.commander.replicas }}
+  selector:
+    matchLabels:
+      component: commander
+      tier: astronomer
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        component: commander
+        tier: astronomer
+        release: {{ .Release.Name }}
+        app: commander
+        version: {{ .Chart.Version }}
+      annotations:
+        checksum/airflow-chart-version: {{ .Values.airflowChartVersion | sha256sum }}
+    spec:
+      nodeSelector:
+{{ toYaml (default .Values.global.platformNodePool.nodeSelector .Values.nodeSelector) | indent 8 }}
+      affinity:
+{{ toYaml (default .Values.global.platformNodePool.affinity .Values.affinity) | indent 8 }}
+      tolerations:
+{{ toYaml (default .Values.global.platformNodePool.tolerations .Values.tolerations) | indent 8 }}
+      serviceAccountName: {{ .Release.Name }}-commander
+      restartPolicy: Always
+      securityContext:
+        runAsUser: {{ .Values.uid }}
+{{- include "astronomer.imagePullSecrets" . | indent 6 }}
+      containers:
+        - name: commander
+          image: {{ template "commander.image" . }}
+          imagePullPolicy: {{ .Values.images.commander.pullPolicy }}
+          resources:
+{{ toYaml .Values.commander.resources | indent 12 }}
+          {{- if .Values.commander.command }}
+          command:
+            {{- toYaml .Values.commander.command | nindent 12 }}
+          {{- end }}
+          {{- if .Values.commander.args }}
+          args:
+            {{- toYaml .Values.commander.args | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: commander-http
+              containerPort: {{ .Values.ports.commanderHTTP }}
+            - name: commander-grpc
+              containerPort: {{ .Values.ports.commanderGRPC }}
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: {{ .Values.ports.commanderHTTP }}
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.ports.commanderHTTP }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          env:
+            {{- range $i, $config := .Values.commander.env }}
+            - name: {{ $config.name }}
+              value: {{ $config.value | quote }}
+            {{- end }}
+            - name: COMMANDER_HTTP_PORT
+              value: "8880"
+            - name: COMMANDER_GRPC_PORT
+              value: "50051"
+            - name: COMMANDER_PLATFORM_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: COMMANDER_PLATFORM_RELEASE
+              value: {{ .Release.Name }}
+            - name: COMMANDER_HELM_REPO
+              value: {{ .Values.global.helmRepo }}
+            - name: HELM_HOST
+              value: {{ .Values.global.helmHost }}
+            {{ if .Values.commander.upgradeTimeout }}
+            - name: COMMANDER_UPGRADE_TIMEOUT
+              value: {{ .Values.commander.upgradeTimeout | quote }}
+            {{- end }}
+            {{ if .Values.commander.airGapped.enabled }}
+            - name: COMMANDER_AIRGAPPED
+              value: "true"
+            {{- end }}
+            {{ if .Values.global.features.namespacePools.enabled }}
+            - name: COMMANDER_MANUAL_NAMESPACE_NAMES
+              value: "true"
+            {{- end }}
+          volumeMounts:
+{{- if .Values.commander.volumeMounts }}
+{{- tpl (toYaml .Values.commander.volumeMounts) $ | nindent 12 }}
+{{- end }}
+{{- if .Values.commander.extraContainers }}
+{{- tpl (toYaml .Values.commander.extraContainers) $ | nindent 8 }}
+{{- end }}
+      volumes:
+{{- if .Values.commander.extraVolumes }}
+{{- tpl (toYaml .Values.commander.extraVolumes) $ | nindent 8 }}
+{{- end }}

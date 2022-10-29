@@ -1,0 +1,34 @@
+{{- if .Values.global.pspEnabled }}
+# All purpose catch all restrictive policy
+# If a specific policy is not applied this one will be
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: {{ .Release.Name }}-restrictive
+spec:
+  privileged: true # this should be false but pending changes in debian airflow image
+  hostNetwork: false
+  allowPrivilegeEscalation: true # this should be false but pending changes in debian airflow image
+  defaultAllowPrivilegeEscalation: true # this should be false but pending changes in debian airflow image
+  hostPID: false
+  hostIPC: false
+  runAsUser:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - 'configMap'
+  - 'downwardAPI'
+  - 'emptyDir'
+  - 'persistentVolumeClaim'
+  - 'secret'
+  - 'projected'
+  allowedCapabilities:
+  - '*'
+
+  - '*'
+{{- end -}}

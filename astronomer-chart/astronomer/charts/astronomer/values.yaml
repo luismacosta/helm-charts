@@ -1,0 +1,355 @@
+# Default values for astronomer.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This version number controls the default Airflow chart version that will be installed
+# when creating a new deployment in the system. This is also used to ensure all
+# child airflow deployments are kept up to date and on the latest version.
+airflowChartVersion: 1.7.1
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+# Images for Astronomer
+images:
+  commander:
+    repository: quay.io/astronomer/ap-commander
+    tag: 0.30.5
+    pullPolicy: IfNotPresent
+  registry:
+    repository: quay.io/astronomer/ap-registry
+    tag: 3.16.2-1
+    pullPolicy: IfNotPresent
+    # httpSecret: ~
+  houston:
+    repository: quay.io/astronomer/ap-houston-api
+    tag: 0.30.25
+    pullPolicy: IfNotPresent
+  astroUI:
+    repository: quay.io/astronomer/ap-astro-ui
+    tag: 0.30.7
+    pullPolicy: IfNotPresent
+  dbBootstrapper:
+    repository: quay.io/astronomer/ap-db-bootstrapper
+    tag: 0.26.11
+    pullPolicy: IfNotPresent
+  cliInstall:
+    repository: quay.io/astronomer/ap-cli-install
+    tag: 0.26.8
+    pullPolicy: IfNotPresent
+
+astroUI:
+  replicas: 2
+  env: []
+  # This only applies when replicas > 3
+  maxUnavailable: 25%
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+houston:
+  prismaConnectionLimit: 5
+  replicas: 2
+  # This only applies when replicas > 3
+  maxUnavailable: 25%
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 10
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 10
+
+  # Houston can regenerate its certificate authority on each 'helm upgrade'
+  # or leave it alone. If this is set to 'true', then all users are logged
+  # out on each helm upgrade. This is usually preferred 'true' for the case of
+  # enterprise, and 'false' for the case of SaaS, where upgrades should be
+  # without user interruption.
+  regenerateCaEachUpgrade: false
+  # Houston datastore
+  backendSecretName: ~
+  backendConnection:
+    {}
+    # user: ~
+    # pass: ~
+    # host: ~
+    # port: ~
+    # db: ~
+
+  # Airflow backends
+  airflowBackendSecretName: ~
+  airflowBackendConnection:
+    {}
+    # user: ~
+    # pass: ~
+    # host: ~
+    # port: ~
+    # db: ~
+
+  # This specifies an optional secret name to use to sign JWTs.
+  # If not specified, we use an auto-generated, self-signed certificate.
+  jwtSigningKeySecretName: ~
+  jwtSigningCertificateSecretName: ~
+
+  env: []
+
+  # For example
+  #   `kubectl create secret generic my-secret --from-literal=connection=smtps://USERNAME:PW@HOST/?pool=true`
+  # and then set:
+  #
+  # secret:
+  # - envName: "EMAIL__SMTP_URL"
+  #   secretName: "my-scret"
+  #   secretKey: "connection"
+  secret: []
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Any Houston configuration. Reference here:
+  # https://github.com/astronomer/houston-api/blob/main/config/default.yaml
+  config: {}
+
+  # Worker to connect to NATS
+  worker:
+    enabled: true
+    replicas: 2
+
+  # Automatically upgrade Airflow deployments to the latest
+  # version specified by Houston configuration.
+  # This runs as a Job after helm upgrades.
+  upgradeDeployments:
+    # Enable this helm hook on upgrade
+    enabled: true
+
+    # Only run on deployments marked as canary
+    canary: false
+
+  # Expire deployments that have gone past trial date in Houston
+  # This runs as a CronJob
+  expireDeployments:
+    # Enable expire deployments CronJob
+    enabled: false
+
+    # Default here is to run at midnight every night https://crontab.guru/#0_0_*_*_*
+    schedule: "0 0 * * *"
+
+    # Print out the deployments that should be expired and skip actual deletion
+    dryRun: false
+
+    # Only run on deployments marked as canary
+    canary: false
+
+  # Cleanup deployments that have been soft-deleted in Houston
+  # This runs as a CronJob
+  cleanupDeployments:
+    # Enable cleanup CronJob
+    enabled: true
+
+    # Default here is to run at midnight every night https://crontab.guru/#0_0_*_*_*
+    schedule: "0 0 * * *"
+
+    # Cleanup deployments older than this many days
+    olderThan: 14
+
+    # Print out the deployments that should be cleaned up and skip actual cleanup
+    dryRun: false
+
+    # Only run on deployments marked as canary
+    canary: false
+
+  # Check for Astronomer Platform Updates
+  # This runs as a CronJob
+  updateCheck:
+    # Enable check updates CronJob
+    enabled: true
+
+    # url for update service
+    url: https://updates.astronomer.io/astronomer-platform
+
+    # Default here is to run at midnight every night https://crontab.guru/#0_0_*_*_*
+    schedule: "0 0 * * *"
+
+  # Check for Airflow Updates
+  # This runs as a CronJob
+  updateAirflowCheck:
+    # Enable check updates CronJob
+    enabled: true
+
+    # url for update service
+    url: https://updates.astronomer.io/astronomer-certified
+
+    # Run at minute 57 every hour https://crontab.guru/#57_*_*_*_*
+    schedule: "57 * * * *"
+
+  # Check for Astronomer Runtime Updates
+  # This runs as a CronJob
+  updateRuntimeCheck:
+    # Enable check updates CronJob
+    enabled: true
+
+    # url for update service
+    url: https://updates.astronomer.io/astronomer-runtime
+
+    # Default here is to run at 00:43 every night https://crontab.guru/#43_0_*_*_*
+    schedule: "43 0 * * *"
+
+
+  airflowReleasesConfig:
+    # example of usage:
+    # available_releases:
+    # - version: 1.10.7-15
+    #   level: bug_fix
+    #   url: https://github.com/astronomer/airflow/releases/tag/v1.10.7%2Bastro.15
+    #   release_date: '2020-09-22T15:52:00+00:00'
+    #   tags:
+    #   - 1.10.7-15-alpine3.10-onbuild
+    #   - 1.10.7-15-buster-onbuild
+    #   - 1.10.7-15-alpine3.10
+    #   - 1.10.7-15-buster
+    #   channel: stable
+    # - version: 1.10.12-1
+    #   level: new_feature
+    #   url: https://github.com/astronomer/airflow/releases/tag/v1.10.12%2Bastro.1
+    #   release_date: '2020-09-29T22:15:00+00:00'
+    #   tags:
+    #   - 1.10.12-1-alpine3.10-onbuild
+    #   - 1.10.12-1-buster-onbuild
+    #   - 1.10.12-1-alpine3.10
+    #   - 1.10.12-1-buster
+    #   channel: stable
+    # - version: 2.0.0
+    #   level: new_feature
+    #   url: https://github.com/astronomer/airflow/releases/tag/v1.10.12%2Bastro.1
+    #   release_date: '2020-09-29T22:15:00+00:00'
+    #   tags:
+    #   - 2.0.0-alpine3.10-onbuild
+    #   channel: stable
+
+  # Add extra containers here
+  extraContainers: []
+
+  # Add volumes to your containers
+  extraVolumes: []
+
+configSyncer:
+  enabled: true
+  # If not provided, will generate a random hour and minutes to spread cronjob workloads.
+  schedule: ~
+
+commander:
+  replicas: 2
+  env: []
+  # This only applies when replicas > 3
+  maxUnavailable: 25%
+  resources:
+    {}
+    # limits:
+    #  cpu: 100m
+    #  memory: 128Mi
+    # requests:
+    #  cpu: 100m
+    #  memory: 128Mi
+  airGapped:
+    # Enable airgapped mode
+    enabled: false
+  upgradeTimeout: 300
+
+  # Add extra containers to your commander deployment.
+  extraContainers: []
+
+  # Add extra volumes to your commander deployment.
+  extraVolumes: []
+
+registry:
+  # k8s secret name for registry to use to authenticate to houston when sending notifications
+  authHeaderSecretName: ~
+  replicas: 1
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  persistence:
+    # Enable persistent storage
+    enabled: true
+    # Size of volume to provision
+    size: 100Gi
+    # If using a custom storageClass, pass name ref to all statefulSets here
+    storageClassName: ~
+    annotations: {}
+
+  auth:
+    secretName: ~
+    connection: ~
+    service: "docker-registry"
+    issuer: "houston"
+
+  gcs:
+    enabled: false
+    bucket: ~
+    useKeyfile: true
+    keyfile: /var/gcs-keyfile/astronomer-gcs-keyfile
+    rootdirectory: /
+    chunksize: "5242880"
+
+  azure:
+    enabled: false
+    accountname: ~
+    accountkey: ~
+    container: ~
+    realm: ~
+
+  s3:
+    enabled: false
+    accesskey: ~
+    secretkey: ~
+    region: ~
+    bucket: ~
+    encrypt: false
+    keyid: ~
+    rootdirectory: ~
+    regionendpoint: ~
+
+  notifications:
+    timeout: 30s
+
+  redirect:
+    disable: false
+
+install:
+  resources: {}
+  cliVersion: 0.29
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+e2eTest:
+  env: []
+  resources: {}
+
+ports:
+  houstonHTTP: 8871
+  commanderHTTP: 8880
+  commanderGRPC: 50051
+  astroUIHTTP: 8080
+  registryHTTP: 5000
+  registryScrape: 5001
+  installHTTP: 8080

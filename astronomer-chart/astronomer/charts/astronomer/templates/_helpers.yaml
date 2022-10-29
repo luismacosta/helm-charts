@@ -1,0 +1,360 @@
+{{ define "helm.globals" -}}
+  {{- $globals := dict -}}
+  {{- $_ := set $globals "baseDomain" (default "" .Values.global.baseDomain) -}}
+  {{- $_ := set $globals "acme" (.Values.global.acme) -}}
+  {{- $_ := set $globals "rbacEnabled" .Values.global.rbacEnabled -}}
+  {{- $_ := set $globals "releaseName" (print .Release.Name | toString) -}}
+  {{- $_ := set $globals "releaseNamespace" (print .Release.Namespace | toString) -}}
+  {{- $_ := set $globals "releaseVersion" (print .Chart.Version | toString) -}}
+  {{ $globals | toJson | print }}
+{{- end }}
+
+{{ define "commander.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-commander:{{ .Values.images.commander.tag }}
+{{- else -}}
+{{ .Values.images.commander.repository }}:{{ .Values.images.commander.tag }}
+{{- end }}
+{{- end }}
+
+{{ define "houston.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-houston-api:{{ .Values.images.houston.tag }}
+{{- else -}}
+{{ .Values.images.houston.repository }}:{{ .Values.images.houston.tag }}
+{{- end }}
+{{- end }}
+
+{{ define "astroUI.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-astro-ui:{{ .Values.images.astroUI.tag }}
+{{- else -}}
+{{ .Values.images.astroUI.repository }}:{{ .Values.images.astroUI.tag }}
+{{- end }}
+{{- end }}
+
+{{ define "registry.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-registry:{{ .Values.images.registry.tag }}
+{{- else -}}
+{{ .Values.images.registry.repository }}:{{ .Values.images.registry.tag }}
+{{- end }}
+{{- end }}
+
+{{ define "dbBootstrapper.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-db-bootstrapper:{{ .Values.images.dbBootstrapper.tag }}
+{{- else -}}
+{{ .Values.images.dbBootstrapper.repository }}:{{ .Values.images.dbBootstrapper.tag }}
+{{- end }}
+{{- end }}
+
+{{ define "cliInstall.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-cli-install:{{ .Values.images.cliInstall.tag }}
+{{- else -}}
+{{ .Values.images.cliInstall.repository }}:{{ .Values.images.cliInstall.tag }}
+{{- end }}
+{{- end }}
+
+{{ define "registry.docker.config" -}}
+  {{- $domain := printf "registry.%v" .Values.global.baseDomain }}
+  {{- $email := printf "admin@%v" .Values.global.baseDomain }}
+
+  {{- $user := randAlphaNum 16 -}}
+  {{- if .Values.global.privateRegistry.user -}}
+  {{- $user := .Values.global.privateRegistry.user -}}
+  {{- end }}
+
+  {{- $pass := randAlphaNum 32 -}}
+  {{- if .Values.global.privateRegistry.password -}}
+  {{- $pass := .Values.global.privateRegistry.password -}}
+  {{- end }}
+
+  {{- $config := dict "auths" -}}
+  {{- $auth := dict -}}
+  {{- $data := dict -}}
+  {{- $_ := set $data "username" $user -}}
+  {{- $_ := set $data "password" $pass -}}
+  {{- $_ := set $data "email" $email -}}
+  {{- $_ := set $data "auth" (printf "%v:%v" $user $pass | b64enc) -}}
+  {{- $_ := set $auth $domain $data -}}
+  {{- $_ := set $config "auths" $auth -}}
+  {{ $config | toJson | print }}
+{{- end }}
+
+{{ define "houston.backendSecret" -}}
+{{ default (printf "%s-houston-backend" .Release.Name) .Values.houston.backendSecretName }}
+{{- end }}
+
+{{ define "registry.authHeaderSecret" -}}
+{{ default (printf "%s-registry-auth-key" .Release.Name) .Values.registry.authHeaderSecretName }}
+{{- end }}
+
+{{ define "houston.airflowBackendSecret" -}}
+{{ default (printf "%s-houston-backend" .Release.Name) .Values.houston.airflowBackendSecretName }}
+{{- end }}
+
+{{ define "houston.jwtKeySecret" -}}
+{{ default (printf "%s-houston-jwt-signing-key" .Release.Name) .Values.houston.jwtSigningKeySecretName }}
+{{- end }}
+
+{{ define "houston.jwtCertificateSecret" -}}
+{{ default (printf "%s-houston-jwt-signing-certificate" .Release.Name) .Values.houston.jwtSigningCertificateSecretName }}
+{{- end }}
+
+{{ define "houston.jwtCertificateDir" -}}
+/etc/houston/tls/self
+{{- end }}
+
+{{ define "houston.jwtKeyPath" -}}
+{{ printf "%s/tls.key" (include "houston.jwtCertificateDir" .) }}
+{{- end }}
+
+{{ define "houston.jwtCertificatePath" -}}
+{{ printf "%s/tls.crt" (include "houston.jwtCertificateDir" .) }}
+{{- end }}
+
+{{ define "houston.jwtRegistryCertificatePath" -}}
+/etc/houston/tls/registry
+{{- end }}
+
+{{ define "houston.tlsRegistryCertificatePath" -}}
+/usr/local/share/ca-certificates/registry.crt
+{{- end }}
+
+{{ define "registry.authSecret" -}}
+{{ default (printf "%s-registry-auth" .Release.Name) .Values.registry.auth.secretName }}
+{{- end }}
+
+{{ define "houston.bootstrapperServiceAccount" -}}
+{{ printf "%s-houston-bootstrapper" .Release.Name }}
+{{- end }}
+
+{{- define "registry.gcsVolume" }}
+- name: gcs-keyfile
+  secret:
+    secretName: astronomer-gcs-keyfile
+{{- end }}
+
+{{- define "registry.gcsVolumeMount" }}
+- name: gcs-keyfile
+  mountPath: /var/gcs-keyfile
+{{- end }}
+
+{{- define "registry.gcsConfig" }}
+gcs:
+  bucket: {{ .Values.registry.gcs.bucket }}
+  {{- if .Values.registry.gcs.useKeyfile }}
+  keyfile: {{ .Values.registry.gcs.keyfile }}
+  {{- end }}
+  rootdirectory: {{ .Values.registry.gcs.rootdirectory }}
+  chunksize: {{ .Values.registry.gcs.chunksize }}
+{{- end }}
+
+{{- define "registry.azureConfig" }}
+azure:
+  accountname: {{ .Values.registry.azure.accountname }}
+  accountkey: {{ .Values.registry.azure.accountkey }}
+  container: {{ .Values.registry.azure.container }}
+  realm: {{ .Values.registry.azure.realm }}
+{{- end }}
+
+{{- define "registry.s3Config" }}
+s3:
+  accesskey: {{ .Values.registry.s3.accesskey }}
+  secretkey: {{ .Values.registry.s3.secretkey }}
+  region: {{ .Values.registry.s3.region }}
+  bucket: {{ .Values.registry.s3.bucket }}
+  encrypt: {{ .Values.registry.s3.encrypt }}
+  keyid: {{ .Values.registry.s3.keyid }}
+  rootdirectory: {{ .Values.registry.s3.rootdirectory }}
+  regionendpoint: {{ .Values.registry.s3.regionendpoint }}
+{{- end }}
+
+{{- define "houston_environment" }}
+{{- /* Dynamically created envs */ -}}
+{{- range $i, $config := .Values.houston.env }}
+- name: {{ $config.name }}
+  value: {{ $config.value | quote }}
+{{- end }}
+{{- /* Dynamically created secret envs */ -}}
+{{- range $i, $config := .Values.houston.secret }}
+- name: {{ $config.envName }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ $config.secretName }}
+      key: {{ default "value" $config.secretKey }}
+{{- end }}
+- name: NODE_ENV
+  value: "production"
+- name: DATABASE__CONNECTION
+  valueFrom:
+    secretKeyRef:
+      name: {{ template "houston.backendSecret" . }}
+      key: connection
+- name: JWT__CERT_PATH
+  value: {{ template "houston.jwtCertificateDir" . }}
+- name: JWT__REGISTRY__CERT_PATH
+  value: {{ template "houston.jwtRegistryCertificatePath" . }}
+- name: JWT__REGISTRY__ISSUER
+  value: {{ .Values.registry.auth.issuer }}
+- name: JWT__REGISTRY__SERVICE
+  value: {{ .Values.registry.auth.service }}
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ template "houston.backendSecret" . }}
+      key: connection
+{{- if not (((.Values.houston.config.deployments).database).connection) }}
+- name: DEPLOYMENTS__DATABASE__CONNECTION
+  valueFrom:
+    secretKeyRef:
+      name: {{ template "houston.airflowBackendSecret" . }}
+      key: connection
+{{- end}}
+  # These are set here for Houston's entrypoint script
+- name: COMMANDER__HOST
+  value: {{ .Release.Name }}-commander
+- name: COMMANDER__PORT
+  value: {{ .Values.ports.commanderGRPC | quote }}
+- name: REGISTRY__HOST
+  value: {{ .Release.Name }}-registry
+- name: REGISTRY__PORT
+  value: {{ .Values.ports.registryHTTP | quote }}
+- name: NATS__SERVERS
+  value: {{ template "houston.nats.servers" . }}
+- name: NATS__CLUSTER_ID
+  value: {{ .Release.Name }}-stan
+{{- end }}
+
+{{- define "houston_volume_mounts" }}
+- name: houston-config-volume
+  mountPath: /houston/config/production.yaml
+  subPath: production.yaml
+- name: houston-config-volume
+  mountPath: /houston/config/local-production.yaml
+  subPath: local-production.yaml
+{{ if .Values.houston.airflowReleasesConfig }}
+- name: houston-config-volume
+  mountPath: /houston/airflow_releases.json
+  subPath: airflow_releases.json
+{{- end }}
+- name: houston-jwt-key-volume
+  mountPath: {{ template "houston.jwtKeyPath" . }}
+  subPath: tls.key
+- name: houston-jwt-certificate-volume
+  mountPath: {{ template "houston.jwtCertificatePath" . }}
+  subPath: tls.crt
+{{ if .Values.global.tlsSecret }}
+- name: registry-tls-volume
+  mountPath: {{ template "houston.jwtRegistryCertificatePath" . }}
+- name: registry-tls-volume
+  mountPath: {{ template "houston.tlsRegistryCertificatePath" . }}
+  subPath: tls.crt
+{{- end }}
+{{- end }}
+
+{{- define "houston_volumes" }}
+- name: houston-config-volume
+  configMap:
+    name: {{ .Release.Name }}-houston-config
+    items:
+      - key: production.yaml
+        path: production.yaml
+      - key: local-production.yaml
+        path: local-production.yaml
+      {{ if .Values.houston.airflowReleasesConfig }}
+      - key: airflow_releases.json
+        path: airflow_releases.json
+      {{- end }}
+- name: houston-jwt-key-volume
+  secret:
+    secretName: {{ template "houston.jwtKeySecret" . }}
+- name: houston-jwt-certificate-volume
+  secret:
+    secretName: {{ template "houston.jwtCertificateSecret" . }}
+{{ if .Values.global.tlsSecret }}
+- name: registry-tls-volume
+  secret:
+    secretName: {{ .Values.global.tlsSecret }}
+{{- end }}
+{{- end }}
+
+{{- define "custom_ca_volume_mounts" }}
+{{ if .Values.global.privateCaCerts }}
+{{ range $secret_name := (.Values.global.privateCaCerts) }}
+- name: {{ $secret_name }}
+  mountPath: /usr/local/share/ca-certificates/{{ $secret_name }}.pem
+  subPath: cert.pem
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- define "custom_ca_volumes"}}
+{{ if .Values.global.privateCaCerts }}
+{{ range .Values.global.privateCaCerts }}
+- name: {{ . }}
+  secret:
+    secretName: {{ . }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- define "houston.nats.servers"}}
+{{- $ns := dict "servers" (list) -}}
+{{- $name := printf "%s-nats" .Release.Name -}}
+{{- range $i, $e := until (.Values.global.nats.replicas | int) -}}
+{{- $noop := printf "\"%s-%d.%s.%s.svc:4222\"" $name $i $name $.Release.Namespace | append $ns.servers | set $ns "servers" -}}
+{{- end }}
+{{- printf "'[%s]'" (join "," $ns.servers) -}}
+{{- end }}
+
+{{/*
+Return  the proper Storage Class
+*/}}
+{{- define "registry.storageClass" -}}
+{{/*
+Helm 2.11 supports the assignment of a value to a variable defined in a different scope,
+but Helm 2.9 and 2.10 does not support it, so we need to implement this if-else logic.
+*/}}
+{{- if .Values.global.storageClass -}}
+    {{- if (eq "-" .Values.global.storageClass) -}}
+        {{- printf "storageClassName: \"\"" -}}
+    {{- else }}
+        {{- printf "storageClassName: %s" .Values.global.storageClass -}}
+    {{- end -}}
+{{- else -}}
+    {{- if .Values.registry.persistence.storageClassName -}}
+          {{- if (eq "~" .Values.registry.persistence.storageClassName) -}}
+              {{- printf "storageClassName: \"\"" -}}
+          {{- else }}
+              {{- printf "storageClassName: %s" .Values.registry.persistence.storageClassName -}}
+          {{- end -}}
+    {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "configSyncer.schedule" -}}
+{{- if .Values.configSyncer.schedule -}}
+{{- printf "%s" .Values.configSyncer.schedule | quote }}
+{{- else -}}
+{{/*
+Automatically generate a random minute and hour to try and spread cronjobs
+1. for minutes get a random digit (0 - 9) -> take last digit from adler32sum hash of the release name and multiply by 6
+2. Get same random digit and add 5
+*/}}
+{{- $randomDigit := (regexFind ".$" (adler32sum .Release.Name)) -}}
+{{- printf "%v %v * * *" (mul 6 $randomDigit) (add 5 $randomDigit) | quote -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "astronomer.imagePullSecrets" -}}
+{{- if and .Values.global.privateRegistry.enabled .Values.global.privateRegistry.secretName }}
+imagePullSecrets:
+  - name: {{ .Values.global.privateRegistry.secretName }}
+{{- end -}}
+{{- end -}}

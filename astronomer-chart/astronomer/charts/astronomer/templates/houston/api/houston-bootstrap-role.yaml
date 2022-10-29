@@ -1,0 +1,28 @@
+################################
+## Houston Bootstrap Role
+#################################
+{{- if and .Values.global.rbacEnabled (and (not .Values.houston.backendSecretName) (not .Values.houston.backendConnection)) }}
+kind: Role
+apiVersion: {{ template "apiVersion.rbac" . }}
+metadata:
+  name: {{ .Release.Name }}-houston-bootstrapper
+  labels:
+    tier: houston
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+  {{ if .Values.global.enableArgoCDAnnotation }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  {{- end }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - list
+      - get
+      - create
+      - patch
+{{- end }}

@@ -1,0 +1,39 @@
+################################
+## Astronomer Registry Service
+#################################
+{{- if .Values.global.baseDomain }}
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-registry
+  labels:
+    component: registry
+    tier: astronomer
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+  {{ if .Values.global.enableArgoCDAnnotation }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  {{- end }}
+  # annotations:
+  #   # Metrics annotations
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: {{ .Values.ports.registryScrape | quote }}
+spec:
+  type: ClusterIP
+  selector:
+    component: registry
+    tier: astronomer
+    release: {{ .Release.Name }}
+  ports:
+    - name: registry-http
+      protocol: TCP
+      port: {{ .Values.ports.registryHTTP }}
+      targetPort: {{ .Values.ports.registryHTTP }}
+      appProtocol: http
+    # - name: registry-scrape
+    #   protocol: TCP
+    #   port: {{ .Values.ports.registryScrape }}
+    #   targetPort: {{ .Values.ports.registryScrape }}
+{{- end }}

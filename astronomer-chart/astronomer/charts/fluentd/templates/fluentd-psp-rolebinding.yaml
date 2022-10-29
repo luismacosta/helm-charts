@@ -1,0 +1,16 @@
+{{- if .Values.global.pspEnabled }}
+################################
+## Fluentd PSP RoleBinding
+#################################
+apiVersion: {{ template "apiVersion.rbac" . }}
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-psp-fluentd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-psp-fluentd
+subjects:
+- kind: ServiceAccount
+  name: {{ template "fluentd.fullname" . }}
+{{- end -}}

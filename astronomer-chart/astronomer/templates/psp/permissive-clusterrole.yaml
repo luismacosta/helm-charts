@@ -1,0 +1,15 @@
+{{- if .Values.global.pspEnabled }}
+kind: ClusterRole
+apiVersion: {{ template "apiVersion.rbac" . }}
+metadata:
+  name: {{ .Release.Name }}-psp-permissive
+rules:
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - {{ .Release.Name }}-permissive
+  verbs:
+  - use
+{{- end -}}

@@ -1,0 +1,130 @@
+####################
+## Houston Worker ##
+####################
+{{- if .Values.houston.worker.enabled }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-houston-worker
+  labels:
+    component: houston-worker
+    tier: astronomer
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.houston.worker.replicas }}
+  selector:
+    matchLabels:
+      tier: astronomer
+      component: houston-worker
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: astronomer
+        component: houston-worker
+        release: {{ .Release.Name }}
+        app: houston-worker
+        version: {{ .Chart.Version }}
+      annotations:
+        checksum/houston-config: {{ include (print $.Template.BasePath "/houston/houston-configmap.yaml") . | sha256sum }}
+    spec:
+      nodeSelector:
+{{ toYaml (default .Values.global.platformNodePool.nodeSelector .Values.nodeSelector) | indent 8 }}
+      affinity:
+{{ toYaml (default .Values.global.platformNodePool.affinity .Values.affinity) | indent 8 }}
+      tolerations:
+{{ toYaml (default .Values.global.platformNodePool.tolerations .Values.tolerations) | indent 8 }}
+      restartPolicy: Always
+      {{- if and (not .Values.houston.airflowBackendSecretName) (not .Values.houston.airflowBackendConnection) }}
+      serviceAccountName: {{ template "houston.bootstrapperServiceAccount" . }}
+{{- include "astronomer.imagePullSecrets" . | indent 6 }}
+      initContainers:
+        - name: wait-for-db
+          image: {{ template "houston.image" . }}
+          imagePullPolicy: {{ .Values.images.houston.pullPolicy }}
+          command:
+            - "/houston/bin/entrypoint"
+          args:
+            - "echo"
+            - "DB ready"
+          resources:
+{{ toYaml .Values.houston.resources | indent 12 }}
+          env:
+            {{- include "houston_environment" . | indent 12 }}
+        - name: houston-bootstrapper
+          image: {{ template "dbBootstrapper.image" . }}
+          imagePullPolicy: {{ .Values.images.dbBootstrapper.pullPolicy }}
+          env:
+            - name: BOOTSTRAP_DB
+              valueFrom:
+                secretKeyRef:
+                  name: astronomer-bootstrap
+                  key: connection
+            - name: SCHEMA_NAME
+              value: "houston$default"
+            {{ if .Values.global.ssl.enabled }}
+            - name: SSLMODE
+              value: {{ .Values.global.ssl.mode }}
+            {{- end }}
+            # Connection Limit for Prisma Connection Pool: https://www.prisma.io/docs/concepts/components/prisma-client/deployment#database-connection-limit
+            {{ if .Values.houston.prismaConnectionLimit }}
+            - name: PRISMA_CONNECTION_LIMIT
+              value: {{ .Values.houston.prismaConnectionLimit | quote }}
+            {{ end }}
+            - name: DB_NAME
+              value: {{ .Release.Name }}-houston
+            - name: SECRET_NAME
+              value: {{ template "houston.airflowBackendSecret" . }}
+            - name: NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: IN_CLUSTER
+              value: "true"
+        {{- end }}
+      containers:
+        - name: houston
+          image: {{ template "houston.image" . }}
+          imagePullPolicy: {{ .Values.images.houston.pullPolicy }}
+          {{- if .Values.houston.worker.command }}
+          command:
+            {{- toYaml .Values.houston.worker.command | nindent 12 }}
+          {{ else }}
+          command: ["yarn", "worker"]
+          {{- end }}
+          {{- if .Values.houston.worker.args }}
+          args:
+            {{- toYaml .Values.houston.worker.args | nindent 12 }}
+          {{- end }}
+          resources:
+{{ toYaml .Values.houston.resources | indent 12 }}
+          volumeMounts:
+            {{- include "houston_volume_mounts" . | indent 12 }}
+            {{- include "custom_ca_volume_mounts" . | indent 12 }}
+{{- if .Values.houston.worker.volumeMounts }}
+{{- tpl (toYaml .Values.houston.worker.volumeMounts) $ | nindent 12 }}
+{{- end }}
+          env:
+            - name: GRPC_VERBOSITY
+              value: "INFO"
+            - name: GRPC_TRACE
+              value: "all"
+            {{- include "houston_environment" . | indent 12 }}
+            - name: APOLLO_SERVER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: APOLLO_SERVER_USER_VERSION
+              value: {{ template "houston.image" . }}
+            - name: APOLLO_SERVER_PLATFORM
+              value: "kubernetes/deployment"
+{{- if .Values.houston.worker.extraContainers }}
+{{- tpl (toYaml .Values.houston.worker.extraContainers) $ | nindent 8 }}
+{{- end }}
+      volumes:
+{{- if .Values.houston.worker.extraVolumes }}
+{{ tpl (toYaml .Values.houston.worker.extraVolumes) $ | indent 8 }}
+{{- end }}
+        {{- include "houston_volumes" . | indent 8 }}
+        {{- include "custom_ca_volumes" . | indent 8 }}
+{{- end }}

@@ -1,0 +1,54 @@
+################################
+## Curator CronJob
+#################################
+{{- if .Values.curator.enabled }}
+apiVersion: {{ include "apiVersion.batch.cronjob" . }}
+kind: CronJob
+metadata:
+  name: {{ template "elasticsearch.fullname" . }}-curator
+  labels:
+    tier: logging
+    component: {{ template "elasticsearch.name" . }}
+    chart: {{ template "elasticsearch.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  schedule: {{ .Values.curator.schedule }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+{{- if or .Values.common.podAnnotations .Values.curator.podAnnotations }}
+          annotations:
+{{- end }}
+{{- if .Values.common.podAnnotations }}
+{{ toYaml .Values.common.podAnnotations | indent 12 }}
+{{- end }}
+{{- if .Values.curator.podAnnotations }}
+{{ toYaml .Values.curator.podAnnotations | indent 12 }}
+{{- end }}
+          labels:
+            tier: logging
+            component: {{ template "elasticsearch.name" . }}
+            chart: {{ template "elasticsearch.chart" . }}
+            release: {{ .Release.Name }}
+            heritage: {{ .Release.Service }}
+            app: {{ template "elasticsearch.name" . }}-curator
+            version: {{ .Chart.Version }}
+        spec:
+{{- include "elasticsearch.imagePullSecrets" . | indent 10 }}
+          containers:
+          - name: curator
+            image: {{ template "curator.image" . }}
+            imagePullPolicy: {{ .Values.images.curator.pullPolicy }}
+            command: ["/bin/sh", "-c"]
+            args: ["sleep 5; /usr/bin/curator --config /etc/config/config.yml /etc/config/action_file.yml; exit_code=$?; wget --timeout=5 -O- --post-data='not=used' http://127.0.0.1:15020/quitquitquit; exit $exit_code;"]
+            volumeMounts:
+              - name: config-volume
+                mountPath: /etc/config
+          volumes:
+            - name: config-volume
+              configMap:
+                name: {{ template "elasticsearch.fullname" . }}-curator-config
+          restartPolicy: OnFailure
+{{- end }}

@@ -1,0 +1,18 @@
+{{- if .Values.global.pspEnabled }}
+################################
+## Elasticsearch PSP ClusterRole
+#################################
+kind: ClusterRole
+apiVersion: {{ template "apiVersion.rbac" . }}
+metadata:
+  name: {{ .Release.Name }}-psp-elasticsearch
+rules:
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - {{ .Release.Name }}-elasticsearch
+  verbs:
+  - use
+{{- end -}}

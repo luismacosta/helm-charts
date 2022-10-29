@@ -1,0 +1,62 @@
+################################
+## Kube State Deployment
+#################################
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ template "kube-state.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    tier: {{ template "kube-state.name" . }}
+    component: kube-state
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      tier: {{ template "kube-state.name" . }}
+      component: kube-state
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: {{ template "kube-state.name" . }}
+        component: kube-state
+        release: {{ .Release.Name }}
+        app: {{ template "kube-state.name" . }}
+        version: {{ .Chart.Version }}
+    spec:
+      nodeSelector:
+{{ toYaml (default .Values.global.platformNodePool.nodeSelector .Values.nodeSelector) | indent 8 }}
+      affinity:
+{{ toYaml (default .Values.global.platformNodePool.affinity .Values.affinity) | indent 8 }}
+      tolerations:
+{{ toYaml (default .Values.global.platformNodePool.tolerations .Values.tolerations) | indent 8 }}
+      serviceAccountName: {{ template "kube-state.fullname" . }}
+{{- include "kube-state.imagePullSecrets" . | indent 6 }}
+      containers:
+      - name: kube-state
+        args:
+      {{- if .Values.global.singleNamespace }}
+        - --namespaces={{ .Release.Namespace }}
+      {{- end }}
+      {{- if .Values.extraArgs }}
+          {{- .Values.extraArgs | toYaml | nindent 8 }}
+      {{- end }}
+        image: {{ include "kube-state.image" . }}
+        imagePullPolicy: {{ .Values.images.kubeState.pullPolicy }}
+        ports:
+        - name: scrape
+          containerPort: {{ .Values.ports.scrape }}
+        - name: telemetry
+          containerPort: {{ .Values.ports.telemetry }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.ports.scrape }}
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        resources:
+{{ toYaml .Values.resources | indent 12 }}

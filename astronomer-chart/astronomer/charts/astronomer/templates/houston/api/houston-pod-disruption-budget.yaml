@@ -1,0 +1,20 @@
+###########################################
+## Astronomer Houston Pod Disruption Budget
+###########################################
+{{- if .Values.global.podDisruptionBudgetsEnabled }}
+apiVersion: {{ include "apiVersion.PodDisruptionBudget" . }}
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-houston-pdb
+spec:
+  {{- if lt ( .Values.houston.replicas | int ) 4 }}
+  maxUnavailable: 1
+  {{- else }}
+  maxUnavailable: {{ .Values.houston.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      tier: astronomer
+      component: houston
+      release: {{ .Release.Name }}
+{{- end }}

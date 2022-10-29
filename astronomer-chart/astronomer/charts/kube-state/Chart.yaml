@@ -1,0 +1,7 @@
+apiVersion: v1
+description: A Helm chart to deploy the Astronomer Platform kube-state module
+keywords:
+- astronomer
+- kube-state
+name: kube-state
+version: 0.12.0

@@ -1,0 +1,138 @@
+################################
+## Astronomer Registry StatefulSet
+#################################
+{{- if .Values.global.baseDomain }}
+{{- if or .Values.registry.gcs.enabled .Values.registry.azure.enabled .Values.registry.s3.enabled }}
+kind: Deployment
+apiVersion: apps/v1
+{{- else }}
+kind: StatefulSet
+apiVersion: apps/v1
+{{- end }}
+metadata:
+  name: {{ .Release.Name }}-registry
+  labels:
+    component: registry
+    tier: astronomer
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+  {{ if .Values.global.enableArgoCDAnnotation }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  {{- end }}
+spec:
+  replicas: {{ .Values.registry.replicas }}
+  selector:
+    matchLabels:
+      component: registry
+      tier: astronomer
+      release: {{ .Release.Name }}
+{{- if and (not .Values.registry.gcs.enabled) (not .Values.registry.azure.enabled) (not .Values.registry.s3.enabled)}}
+  serviceName: {{ .Release.Name }}-registry
+{{- end }}
+  template:
+    metadata:
+      labels:
+{{- with .Values.podLabels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+        component: registry
+        tier: astronomer
+        release: {{ .Release.Name }}
+        app: registry
+        version: {{ .Chart.Version }}
+      annotations:
+        checksum/configmap: {{ include (print $.Template.BasePath "/registry/registry-configmap.yaml") . | sha256sum }}
+    spec:
+      nodeSelector:
+{{ toYaml (default .Values.global.platformNodePool.nodeSelector .Values.nodeSelector) | indent 8 }}
+      affinity:
+{{ toYaml (default .Values.global.platformNodePool.affinity .Values.affinity) | indent 8 }}
+      tolerations:
+{{ toYaml (default .Values.global.platformNodePool.tolerations .Values.tolerations) | indent 8 }}
+      restartPolicy: Always
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+{{- include "astronomer.imagePullSecrets" . | indent 6 }}
+      containers:
+        - name: registry
+          image: {{ template  "registry.image" . }}
+          imagePullPolicy: {{ .Values.images.registry.pullPolicy }}
+          env:
+          - name: REGISTRY_NOTIFICATIONS_ENDPOINTS_0_HEADERS
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "registry.authHeaderSecret" . }}
+                key: authHeaders
+          - name: REGISTRY_HTTP_SECRET
+            {{- if .Values.registry.httpSecret }}
+            value: {{ .Values.registry.httpSecret }}
+            {{- else }}
+            value: {{ randAlphaNum 32 }}
+            {{- end }}
+          resources:
+{{ toYaml .Values.registry.resources | indent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/docker/registry
+            - name: certificate
+              mountPath: /etc/docker/ssl
+            - name: data
+              mountPath: /var/lib/registry
+            {{- if and .Values.registry.gcs.enabled .Values.registry.gcs.useKeyfile }}
+            {{- include "registry.gcsVolumeMount" . | indent 12 }}
+            {{- end }}
+          ports:
+            - name: registry-http
+              containerPort: {{ .Values.ports.registryHTTP }}
+            # - name: registry-scrape
+            #   containerPort: {{ .Values.ports.registryScrape }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.ports.registryHTTP }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.ports.registryHTTP }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-registry
+            items:
+              - key: config.yml
+                path: config.yml
+        - name: certificate
+          secret:
+            secretName: {{ .Values.global.tlsSecret }}
+        {{- if and .Values.registry.gcs.enabled .Values.registry.gcs.useKeyfile }}
+        {{- include "registry.gcsVolume" . | indent 8 }}
+        {{- end }}
+  {{- if or (not .Values.registry.persistence.enabled) (.Values.registry.gcs.enabled) (.Values.registry.azure.enabled) (.Values.registry.s3.enabled)}}
+        - name: data
+          emptyDir: {}
+  {{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        {{- if .Values.registry.persistence.annotations }}
+        annotations:
+          {{- toYaml .Values.registry.persistence.annotations | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.registry.persistence.size }}
+        {{ include "registry.storageClass" . }}
+  {{- end }}
+{{- end }}

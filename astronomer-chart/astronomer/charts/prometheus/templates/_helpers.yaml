@@ -1,0 +1,87 @@
+{{/* vim: set filetype=mustache: */}}
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "prometheus.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+*/}}
+{{- define "prometheus.fullname" -}}
+{{- $name := default .Chart.Name .Values.nameOverride -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create chart name and version as used by the chart label.
+*/}}
+{{- define "prometheus.chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{ define "prometheus.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-prometheus:{{ .Values.images.prometheus.tag }}
+{{- else -}}
+{{ .Values.images.prometheus.repository }}:{{ .Values.images.prometheus.tag }}
+{{- end }}
+{{- end }}
+
+
+{{ define "configReloader.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-configmap-reloader:{{ .Values.images.configReloader.tag }}
+{{- else -}}
+{{ .Values.images.configReloader.repository }}:{{ .Values.images.configReloader.tag }}
+{{- end }}
+{{- end }}
+
+{{ define "prometheus.init.image" -}}
+{{- if .Values.global.privateRegistry.enabled -}}
+{{ .Values.global.privateRegistry.repository }}/ap-base:{{ .Values.images.init.tag }}
+{{- else -}}
+{{ .Values.images.init.repository }}:{{ .Values.images.init.tag }}
+{{- end }}
+{{- end }}
+
+{{ define "prometheus.url" -}}
+prometheus.{{ .Values.global.baseDomain }}
+{{- end }}
+
+{{/*
+Return  the proper Storage Class
+*/}}
+{{- define "prometheus.storageClass" -}}
+{{/*
+Helm 2.11 supports the assignment of a value to a variable defined in a different scope,
+but Helm 2.9 and 2.10 does not support it, so we need to implement this if-else logic.
+*/}}
+{{- if .Values.global.storageClass -}}
+    {{- if (eq "-" .Values.global.storageClass) -}}
+        {{- printf "storageClassName: \"\"" -}}
+    {{- else }}
+        {{- printf "storageClassName: %s" .Values.global.storageClass -}}
+    {{- end -}}
+{{- else -}}
+    {{- if .Values.persistence.storageClassName -}}
+          {{- if (eq "~" .Values.persistence.storageClassName) -}}
+              {{- printf "storageClassName: \"\"" -}}
+          {{- else }}
+              {{- printf "storageClassName: %s" .Values.persistence.storageClassName -}}
+          {{- end -}}
+    {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the proper Docker Image Registry Secret Names
+*/}}
+{{- define "prometheus.imagePullSecrets" -}}
+{{- if and .Values.global.privateRegistry.enabled .Values.global.privateRegistry.secretName }}
+imagePullSecrets:
+  - name: {{ .Values.global.privateRegistry.secretName }}
+{{- end -}}
+{{- end -}}

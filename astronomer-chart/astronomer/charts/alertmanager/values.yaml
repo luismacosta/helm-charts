@@ -1,0 +1,73 @@
+# Default values for alertmanager.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+images:
+  alertmanager:
+    repository: quay.io/astronomer/ap-alertmanager
+    tag: 0.23.0
+    pullPolicy: IfNotPresent
+
+resources: {}
+  # limits:
+  #  cpu: 100m
+  #  memory: 128Mi
+  # requests:
+  #  cpu: 100m
+  #  memory: 128Mi
+
+replicas: 1
+
+dataDir: "/data"
+
+prefixURL: ""
+
+persistence:
+  enabled: true
+  size: 2Gi
+  storageClassName: ~
+  annotations: {}
+
+env: {}
+
+ports:
+  http: 9093
+
+# Set to true to disable alertmanager clustering
+disableClustering: false
+
+receivers:
+  # Configs for platform alerts
+  platform: {}
+
+  platformCritical: {}
+  # example config for pager duty
+  # - routing_key: XXXXXXXXXX
+  #   send_resolved: true
+
+  # Configs for airflow alerts
+  airflow: {}
+
+customRoutes: []
+# Example
+# - receiver: blackhole-receiver
+#   match_re:
+#     tier: platform
+#     namespace: ^(test-ns.*)
+
+customReceiver: []
+# Example
+#  - name: sns-receiver
+#    sns_configs:
+#      - api_url: <SNS ENDPOINT>
+#        subject: '[Alert: {{ .GroupLabels.alertname }} - {{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}]'
+#        topic_arn: <SNS-TOPIC>
+#        sigv4:
+#          region: <REGION>
+#          role_arn: <SNS-ROLE>
+
+enableNonRFC1918: false

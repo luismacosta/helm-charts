@@ -1,0 +1,150 @@
+# Default values for Prometheus.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
+podLabels: {}
+
+# Prometheus is not designed to be horizontally scalable behind a single load
+# balancer. This configuration will increase the replicas in the Prometheus
+# StatefulSet, and assign a different Service to each Pod. In this way,
+# applications with high availability requirements may handle retrying for
+# missing data on the other Service(s). The StatefulSet will manage the Pods
+# such that only one is replaced at a time.
+replicas: 1
+scrape_interval: 30s
+evaluation_interval: 30s
+velero:
+  enabled: false
+  scrape_interval: 30s
+kubeState:
+  enabled: true
+  scrape_interval: 10s
+fluentd:
+  scrape_interval: 30s
+nodeExporter:
+  enabled: true
+  scrape_interval: 30s
+airflow:
+  scrape_interval: 10s
+postgresqlExporter:
+  enabled: false
+  scrape_interval: 60s
+  scrape_timeout: 30s
+images:
+  prometheus:
+    repository: quay.io/astronomer/ap-prometheus
+    tag: 2.37.1
+    pullPolicy: IfNotPresent
+  configReloader:
+    # repository: astronomerinc/ap-config-reloader
+    repository: quay.io/astronomer/ap-configmap-reloader
+    tag: 0.8.0
+    pullPolicy: IfNotPresent
+
+resources: {}
+#  limits:
+#   cpu: 100m
+#   memory: 128Mi
+#  requests:
+#   cpu: 100m
+#   memory: 128Mi
+
+# probe configurations for prometheus container
+livenessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  failureThreshold: 3
+readinessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  failureThreshold: 3
+
+configMapReloader:
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 25Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 25Mi
+
+# Which directory prometheus data should be stored
+dataDir: "/prometheus"
+
+# How long prometheus should keep data before removing
+retention: 15d
+
+# Enable persistence for Prometheus
+persistence:
+  enabled: true
+  size: 100Gi
+  storageClassName: ~
+  annotations: {}
+
+ports:
+  http: 9090
+
+ingressNetworkPolicyExtraSelectors: []
+
+astroHTTPTargets:
+  commander: true
+  houston: true
+  registry: true
+  cliInstall: true
+  grafana: true
+  kibana: true
+  elasticsearch: true
+
+# additional HTTP endpoints to use as targets
+#  for the blackbox exporter HTTP tests
+# astronomer platform targets are already include in the template
+httpTargets: {}
+
+# list of 1 or more DNS servers to use as targets
+# for the blackbox exporter DNS tests
+dnsTargets:
+  - 10.98.0.10
+
+# Blackbox exporter tcp probe configuration
+# Currently is only configured to scape two targets
+# listed below. To disable the probe and all of the targets
+# set tcpProbe.enabled to false.
+tcpProbe:
+  enabled: false
+  # Enable Blackbox TCP Probe for pg sql proxy in cloud
+  probePGProxy: true
+  # Enable Blackbox TCP Probe for tiller in cloud
+  probeTiller: true
+
+# Enable prometheus lifecycle api
+enableLifecycle: true
+
+additionalAlerts:
+  # Additional rules for the 'platform' alert group
+  # Provide as a block string in yaml list form
+  platform: ~
+  # Additional rules for the 'airflow' alert group
+  # Provide as a block string in yaml list form
+  airflow: ~
+# Example:
+# airflow: |
+#   - alert: MyExampleAlert
+#     # If greater than 10% task failure
+#     expr: 100 * sum(increase(airflow_ti_failures[30m])) /  (sum(increase(airflow_ti_failures[30m])) + sum(increase(airflow_ti_successes[30m]))) > 10
+#     for: 15m
+#     labels:
+#       tier: airflow
+#     annotations:
+#       summary: "The Astronomer Helm release {{ .Release.Name }} is failing task instances {{ printf \"%.2f\" $value }}% of the time over the past 30 minutes"
+#       description: Task instances failing above threshold
+
+# Prometheus config file remote_write stanza
+# https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+# remote_write: {}
+
+# Prometheus config file global.external_labels stanza
+# https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
+# external_labels: {}

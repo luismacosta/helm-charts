@@ -1,0 +1,110 @@
+################################
+## NGINX Deployment
+#################################
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ template "nginx.fullname" . }}
+  labels:
+    tier: {{ template "nginx.name" . }}
+    component: ingress-controller
+    chart: {{ template "nginx.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      tier: {{ template "nginx.name" . }}
+      component: ingress-controller
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: {{ template "nginx.name" . }}
+        component: ingress-controller
+        release: {{ .Release.Name }}
+        app: {{ template "nginx.name" . }}
+        version: {{ .Chart.Version }}
+      annotations:
+        traffic.sidecar.istio.io/includeInboundPorts: ""
+        checksum/configmap: {{ include (print $.Template.BasePath "/nginx-configmap.yaml") . | sha256sum }}
+        checksum/headers-configmap: {{ include (print $.Template.BasePath "/nginx-headers-configmap.yaml") . | sha256sum }}
+        {{- if .Values.global.istio.enabled }}
+        sidecar.istio.io/inject: "false"
+        {{- end }}
+    spec:
+      serviceAccountName: {{ template "nginx.fullname" . }}
+{{- include "nginx.imagePullSecrets" . | indent 6 }}
+      containers:
+        - name: nginx
+          securityContext:
+            runAsUser: 101
+          image: {{ template "nginx.image" . }}
+          imagePullPolicy: {{ .Values.images.nginx.pullPolicy }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          args:
+            - /nginx-ingress-controller
+            - --default-backend-service={{ .Release.Namespace }}/{{ template "nginx.fullname" . }}-default-backend
+            - --configmap={{ .Release.Namespace }}/{{ template "nginx.fullname" . }}-ingress-controller
+            - --ingress-class={{ template "nginx.ingress.class" . }}
+            - --default-ssl-certificate={{ .Release.Namespace }}/{{ .Values.global.tlsSecret }}
+            {{- if .Values.global.singleNamespace }}
+            - --watch-namespace={{ .Release.Namespace }}
+            {{- end }}
+            - --election-id={{ .Values.electionId }}-{{ template "nginx.fullname" . }}
+            - --publish-service={{ .Release.Namespace }}/{{ template "nginx.fullname" . }}
+            - --http-port={{ .Values.ports.http }}
+            - --https-port={{ .Values.ports.https }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.ports.http }}
+            - name: https
+              containerPort: {{ .Values.ports.https }}
+            - name: metrics
+              containerPort: {{ .Values.ports.metrics }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.ports.healthz }}
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      nodeSelector:
+{{ toYaml (default .Values.global.platformNodePool.nodeSelector .Values.nodeSelector) | indent 8 }}
+      affinity:
+    {{- if eq .Values.antiAffinity "hard" }}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  tier: {{ template "nginx.name" . }}
+                  component: ingress-controller
+                  release: {{ .Release.Name }}
+    {{- else if eq .Values.antiAffinity "soft" }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  tier: {{ template "nginx.name" . }}
+                  component: ingress-controller
+                  release: {{ .Release.Name }}
+    {{- if .Values.global.platformNodePool.affinity }}
+{{ toYaml .Values.global.platformNodePool.affinity | indent 8 }}
+    {{- end }}
+      tolerations:
+{{ toYaml (default .Values.global.platformNodePool.tolerations .Values.tolerations) | indent 8 }}
+    {{- end }}

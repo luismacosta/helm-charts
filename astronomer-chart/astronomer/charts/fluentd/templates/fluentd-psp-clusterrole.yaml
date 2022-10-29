@@ -1,0 +1,18 @@
+{{- if .Values.global.pspEnabled }}
+################################
+## Fluentd PSP ClusterRole
+#################################
+kind: ClusterRole
+apiVersion: {{ template "apiVersion.rbac" . }}
+metadata:
+  name: {{ .Release.Name }}-psp-fluentd
+rules:
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - {{ .Release.Name }}-fluentd
+  verbs:
+  - use
+{{- end -}}

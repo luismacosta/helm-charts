@@ -1,0 +1,92 @@
+apiVersion: v2
+appVersion: 0.30.3
+dependencies:
+- condition: global.astronomerEnabled
+  name: astronomer
+  repository: ""
+  tags:
+  - platform
+- condition: global.nginxEnabled
+  name: nginx
+  repository: ""
+  tags:
+  - platform
+- condition: global.grafanaEnabled
+  name: grafana
+  repository: ""
+  tags:
+  - monitoring
+- condition: global.prometheusEnabled
+  name: prometheus
+  repository: ""
+  tags:
+  - monitoring
+- condition: global.prometheusPostgresExporterEnabled
+  name: prometheus-postgres-exporter
+  repository: ""
+  tags:
+  - monitoring
+- condition: global.alertmanagerEnabled
+  name: alertmanager
+  repository: ""
+  tags:
+  - monitoring
+- condition: global.kubeStateEnabled
+  name: kube-state
+  repository: ""
+  tags:
+  - monitoring
+- condition: global.nodeExporterEnabled
+  name: prometheus-node-exporter
+  repository: ""
+  tags:
+  - monitoring
+- condition: global.blackboxExporterEnabled
+  name: prometheus-blackbox-exporter
+  repository: ""
+  tags:
+  - monitoring
+- condition: global.elasticsearchEnabled
+  name: elasticsearch
+  repository: ""
+  tags:
+  - logging
+- condition: global.kibanaEnabled
+  name: kibana
+  repository: ""
+  tags:
+  - logging
+- condition: global.fluentdEnabled
+  name: fluentd
+  repository: ""
+  tags:
+  - logging
+- condition: global.postgresqlEnabled
+  name: postgresql
+  repository: ""
+  tags:
+  - postgresql
+- condition: global.pgbouncer.enabled
+  name: pgbouncer
+  repository: ""
+  tags:
+  - pgbouncer
+- condition: global.nats.enabled
+  name: nats
+  repository: ""
+  tags:
+  - nats
+- condition: global.stan.enabled
+  name: stan
+  repository: ""
+  tags:
+  - stan
+- condition: global.customLogging.enabled
+  name: external-es-proxy
+  repository: ""
+description: Helm chart to deploy the Astronomer Platform
+icon: https://www.astronomer.io/static/iconforLIGHTbackground.svg
+keywords:
+- astronomer
+name: astronomer
+version: 0.30.3

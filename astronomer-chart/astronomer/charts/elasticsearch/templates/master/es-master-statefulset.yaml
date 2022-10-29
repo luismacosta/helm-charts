@@ -1,0 +1,155 @@
+################################
+## Elasticsearch Master StatefulSet
+#################################
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ template "elasticsearch.fullname" . }}-master
+  labels:
+    tier: logging
+    component: {{ template "elasticsearch.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+    role: master
+spec:
+  serviceName: {{ template "elasticsearch.fullname" . }}-master
+  replicas: {{ .Values.master.replicas }}
+  selector:
+    matchLabels:
+      tier: logging
+      component: {{ template "elasticsearch.name" . }}
+      release: {{ .Release.Name }}
+      role: master
+  template:
+    metadata:
+      labels:
+        tier: logging
+        component: {{ template "elasticsearch.name" . }}
+        release: {{ .Release.Name }}
+        role: master
+        app: {{ template "elasticsearch.name" . }}-master
+        version: {{ .Chart.Version }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/es-configmap.yaml") . | sha256sum }}
+{{- if .Values.common.podAnnotations }}
+{{ toYaml .Values.common.podAnnotations | indent 8 }}
+{{- end }}
+{{- if .Values.master.podAnnotations }}
+{{ toYaml .Values.master.podAnnotations | indent 8 }}
+{{- end }}
+    spec:
+      securityContext:
+{{ toYaml .Values.podSecurityContext | indent 10 }}
+      nodeSelector:
+{{ toYaml (default .Values.global.platformNodePool.nodeSelector .Values.nodeSelector) | indent 8 }}
+      {{- if eq .Values.master.antiAffinity "hard" }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  component: {{ template "elasticsearch.name" . }}
+                  release: {{ .Release.Name }}
+                  role: master
+      {{- else if eq .Values.master.antiAffinity "soft" }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  component: {{ template "elasticsearch.name" . }}
+                  release: {{ .Release.Name }}
+                  role: master
+      {{- end }}
+    {{- if .Values.global.platformNodePool.affinity }}
+{{ toYaml .Values.global.platformNodePool.affinity | indent 8 }}
+    {{- end }}
+      tolerations:
+{{ toYaml (default .Values.global.platformNodePool.tolerations .Values.tolerations) | indent 8 }}
+{{- include "elasticsearch.imagePullSecrets" . | indent 6 }}
+      initContainers:
+      {{- if (.Values.sysctlInitContainer.enabled) }}
+      - name: sysctl
+        image: {{ template "init.image" . }}
+        imagePullPolicy: {{ .Values.images.init.pullPolicy }}
+        command: ["sysctl", "-w", "vm.max_map_count={{ .Values.sysctlInitContainer.sysctlVmMaxMapCount}}"]
+        securityContext:
+          privileged: true
+      {{- end }}
+      serviceAccountName: {{ template "elasticsearch.fullname" . }}
+      containers:
+      - name: es-master
+        securityContext:
+{{ toYaml .Values.securityContext | indent 10 }}
+        image: {{ template "elasticsearch.image" . }}
+        imagePullPolicy: {{ .Values.images.es.pullPolicy }}
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DISCOVERY_SERVICE
+          value: {{ template "elasticsearch.fullname" . }}-headless-discovery
+        - name: ES_JAVA_OPTS
+          value: "-Xms{{ .Values.master.heapMemory }} -Xmx{{ .Values.master.heapMemory }}"
+        {{- range $key, $value :=  .Values.common.env }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- range $key, $value :=  .Values.master.env }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+        {{- end }}
+        resources:
+{{ toYaml .Values.master.resources | indent 10 }}
+        ports:
+        - containerPort: {{ .Values.common.ports.transport }}
+          name: transport
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            # local: If true, the request retrieves information from the local node only.
+            # Defaults to false, which means information is retrieved from the master node.
+            path: /_cluster/health?local=true
+            port: {{ .Values.common.ports.http }}
+          initialDelaySeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.common.ports.transport }}
+        volumeMounts:
+        - mountPath: /usr/share/elasticsearch/data
+          name: data
+        - mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          name: config
+          subPath: elasticsearch.yml
+      volumes:
+      - name: config
+        configMap:
+          name: {{ template "elasticsearch.fullname" . }}-config
+  {{- if not .Values.common.persistence.enabled }}
+      - name: data
+        emptyDir: {}
+  {{- else }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      {{- if .Values.common.persistence.annotations }}
+      annotations:
+        {{- toYaml .Values.common.persistence.annotations | nindent 10 }}
+      {{- end }}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.master.persistence.size }}
+      {{ include "elasticsearch.storageClass" . }}
+  {{- end }}

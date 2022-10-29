@@ -1,0 +1,53 @@
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+pod:
+  securityContext: {}
+container:
+  securityContext: {}
+images:
+  fluentd:
+    repository: quay.io/astronomer/ap-fluentd
+    tag: 1.15.2
+    pullPolicy: IfNotPresent
+
+elasticsearch:
+  # host: 'elasticsearch-client'
+  port: 9200
+  buffer_chunk_limit: 2M
+  buffer_queue_limit: 8
+
+livenessProbeConfig:
+  bufferSizeUnhealthy: 8
+  failureThreshold: 3
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  successThreshold: 1
+  timeoutSeconds: 5
+
+ports:
+  promScrape: 24231
+
+# Configure resources
+resources:
+  {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+additionalVolumeMounts: []
+additionalVolumes: []
+
+# Configure log forwarding to S3
+s3:
+  enabled: false
+  path: ~
+  role_arn: ~
+  role_session_name: ~
+  s3_bucket: ~
+  s3_region: ~
+  use_server_side_encryption: ~

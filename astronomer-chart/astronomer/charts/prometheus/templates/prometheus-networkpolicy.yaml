@@ -1,0 +1,59 @@
+################################
+## Prometheus NetworkPolicy
+################################
+{{- if .Values.global.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ template "prometheus.fullname" . }}-policy
+  labels:
+    tier: monitoring
+    component: {{ template "prometheus.name" . }}
+    chart: {{ template "prometheus.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  podSelector:
+    matchLabels:
+      tier: monitoring
+      component: {{ template "prometheus.name" . }}
+      release: {{ .Release.Name }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: astronomer
+          component: houston
+          release: {{ .Release.Name }}
+    - podSelector:
+        matchLabels:
+          tier: monitoring
+          component: grafana
+          release: {{ .Release.Name }}
+    {{- if .Values.global.authSidecar.enabled  }}
+    - namespaceSelector:
+        matchLabels:
+          network.openshift.io/policy-group: ingress
+    {{- else }}
+    - podSelector:
+        matchLabels:
+          tier: nginx
+          component: ingress-controller
+          release: {{ .Release.Name }}
+    {{- end }}
+    # It is sometimes useful to whitelist other pods,
+    # for example admin Airflow tasks.
+    {{- range .Values.ingressNetworkPolicyExtraSelectors }}
+    -
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.ports.http }}
+    {{- if .Values.global.authSidecar.enabled  }}
+    - protocol: TCP
+      port: {{ .Values.global.authSidecar.port }}
+    {{- end }}
+{{- end }}

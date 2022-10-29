@@ -1,0 +1,28 @@
+##############################
+## Elasticsearch Proxy Service
+##############################
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "external-es-proxy.fullname" . }}
+  labels:
+    tier: external-logging
+    component: {{ template "external-es-proxy.name" . }}
+    chart: {{ template "external-es-proxy.chart" . }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: secure-http
+      port: {{ .Values.service.securehttp }}
+      protocol: TCP
+      appProtocol: https
+    - name: http
+      port: {{ .Values.service.http }}
+      protocol: TCP
+      appProtocol: http
+  selector:
+    tier: external-logging
+    component: {{ template "external-es-proxy.name" . }}
+    release: {{ .Release.Name }}

@@ -1,0 +1,37 @@
+################################
+## Prometheus ClusterRole
+#################################
+{{- $singleNamespace := .Values.global.singleNamespace }}
+{{- if .Values.global.rbacEnabled }}
+kind: {{ if $singleNamespace }}Role{{ else }}ClusterRole{{ end }}
+apiVersion: {{ template "apiVersion.rbac" . }}
+metadata:
+  name: {{ template "prometheus.fullname" . }}
+  labels:
+    tier: monitoring
+    component: {{ template "prometheus.name" . }}
+    chart: {{ template "prometheus.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "services"
+      - "endpoints"
+      - "pods"
+      {{- if not $singleNamespace }}
+      - "nodes"
+      - "nodes/proxy"
+      {{- end }}
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+  {{- if not $singleNamespace }}
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - "get"
+  {{- end }}
+{{- end }}
