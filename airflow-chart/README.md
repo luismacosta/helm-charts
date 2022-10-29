@@ -59,13 +59,13 @@ job.batch/airflow-run-airflow-migrations configured <br />
 ➜  kubectl get pods -n airflow    
 
 NAME                                   READY   STATUS      RESTARTS        AGE
-airflow-create-user-r885h              1/1     Running     0               5m52s
-airflow-postgresql-0                   1/1     Running     0               8m36s
-airflow-redis-0                        1/1     Running     0               16m
-airflow-run-airflow-migrations-2nl4t   0/1     Completed   4               16m
-airflow-scheduler-784c7cbd46-wmbff     2/2     Running     0               9m36s
-airflow-statsd-5b4964646f-lqxpf        1/1     Running     1 (3m48s ago)   16m
-airflow-triggerer-86658ddc4d-ggfch     1/1     Running     0               9m36s
-airflow-webserver-677fc57bf4-g6fnh     0/1     Running     1 (76s ago)     16m
-airflow-webserver-784f67cbdc-qsj6r     0/1     Running     1 (87s ago)     9m36s
-airflow-worker-0                       2/2     Running     0               7m2s
+airflow-create-user-r885h              1/1     Running     0               5m52s <br />
+airflow-postgresql-0                   1/1     Running     0               8m36s <br />
+airflow-redis-0                        1/1     Running     0               16m <br />
+airflow-run-airflow-migrations-2nl4t   0/1     Completed   4               16m <br />
+airflow-scheduler-784c7cbd46-wmbff     2/2     Running     0               9m36s <br />
+airflow-statsd-5b4964646f-lqxpf        1/1     Running     1 (3m48s ago)   16m <br />
+airflow-triggerer-86658ddc4d-ggfch     1/1     Running     0               9m36s <br />
+airflow-webserver-677fc57bf4-g6fnh     0/1     Running     1 (76s ago)     16m <br />
+airflow-webserver-784f67cbdc-qsj6r     0/1     Running     1 (87s ago)     9m36s <br />
+airflow-worker-0                       2/2     Running     0               7m2s <br />
