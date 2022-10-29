@@ -59,7 +59,7 @@ job.batch/airflow-run-airflow-migrations configured <br />
 
 ➜  kubectl get pods -n airflow    
 
-NAME                                   READY   STATUS      RESTARTS        AGE
+NAME                                   READY   STATUS      RESTARTS        AGE <br />
 airflow-create-user-r885h              1/1     Running     0               5m52s <br />
 airflow-postgresql-0                   1/1     Running     0               8m36s <br />
 airflow-redis-0                        1/1     Running     0               16m <br />
