@@ -1,0 +1,327 @@
+---
+# Source: ververica-platform/templates/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vvp-ververica-platform
+  labels:
+---
+# Source: ververica-platform/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vvp-ververica-platform-config
+  labels:
+    chart: "ververica-platform-5.3.0"
+    component: ververica-platform
+    heritage: "Helm"
+    release: "vvp"
+    system: ververica-platform
+data:
+  application-prod-user.yaml: |
+    spring:
+      datasource:
+        hikari:
+          maximum-pool-size: 1
+        url: jdbc:sqlite:/vvp/data/vvp.db?journal_mode=WAL&synchronous=FULL&busy_timeout=10000
+    vvp:
+      appmanager:
+        cluster:
+          kubernetes.artifact-fetcher.image-registry: registry.ververica.com/v2.7
+          kubernetes.artifact-fetcher.image-repository: vvp-artifact-fetcher
+          kubernetes.artifact-fetcher.image-tag: 2.7.0
+      auth:
+        enabled: false
+      blobStorage: {}
+      flinkDeploymentDefaults:
+        registry: registry.ververica.com/v2.7
+        repository: flink
+      flinkVersionMetadata:
+      - defaultFor:
+        - 1.13
+        - 1.13.6
+        flinkVersion: 1.13.6
+        imageTag: 1.13.6-stream1-scala_2.12-java8
+        labels:
+          java: 8
+          scalaVersion: 2.12
+      - flinkVersion: 1.13.6
+        imageTag: 1.13.6-stream1-scala_2.12-java11
+        labels:
+          java: 11
+          scalaVersion: 2.12
+      - defaultFor:
+        - 1.14
+        - 1.14.4
+        flinkVersion: 1.14.4
+        imageTag: 1.14.4-stream1-scala_2.12-java8
+        labels:
+          java: 8
+          scalaVersion: 2.12
+      - flinkVersion: 1.14.4
+        imageTag: 1.14.4-stream1-scala_2.12-java11
+        labels:
+          java: 11
+          scalaVersion: 2.12
+      - defaultFor:
+        - 1.15
+        - 1.15.0
+        flinkVersion: 1.15.0
+        imageTag: 1.15.0-stream1-scala_2.12-java8
+        labels:
+          java: 8
+          scalaVersion: 2.12
+        useForSqlDeployments: true
+      - flinkVersion: 1.15.0
+        imageTag: 1.15.0-stream1-scala_2.12-java11
+        labels:
+          java: 11
+          scalaVersion: 2.12
+      license:
+        acceptCommunityEditionLicense: true
+      persistence:
+        type: local
+      platformKubernetesNamespace: default
+      registry: registry.ververica.com/v2.7
+      resultFetcher:
+        registry: registry.ververica.com/v2.7
+        repository: vvp-result-fetcher-service
+        tag: 2.7.0
+---
+# Source: ververica-platform/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  annotations:
+  name: vvp-ververica-platform
+  labels:
+    app: vvp-ververica-platform
+    chart: "ververica-platform-5.3.0"
+    component: ververica-platform
+    heritage: "Helm"
+    release: "vvp"
+    system: ververica-platform
+spec:
+  accessModes:
+  - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: ververica-platform/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vvp-ververica-platform
+  labels:
+rules:
+- apiGroups: ["apps", "extensions"]
+  resources: ["deployments"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: [""]
+  resources: ["configmaps", "pods", "services", "secrets", "serviceaccounts"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+---
+# Source: ververica-platform/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vvp-ververica-platform
+  labels:
+subjects:
+- kind: ServiceAccount
+  name: vvp-ververica-platform
+roleRef:
+  kind: Role
+  name: vvp-ververica-platform
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: ververica-platform/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: vvp-ververica-platform
+  labels:
+    app: vvp-ververica-platform
+    chart: "ververica-platform-5.3.0"
+    component: ververica-platform
+    heritage: "Helm"
+    release: "vvp"
+    system: ververica-platform
+  annotations:
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: vvp-ververica-platform
+    component: ververica-platform
+---
+# Source: ververica-platform/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vvp-ververica-platform
+  labels:
+    app: vvp-ververica-platform
+    chart: "ververica-platform-5.3.0"
+    component: ververica-platform
+    heritage: "Helm"
+    release: "vvp"
+    system: ververica-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vvp-ververica-platform
+      component: ververica-platform
+      release: "vvp"
+      system: ververica-platform
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: vvp-ververica-platform
+        component: ververica-platform
+        release: "vvp"
+        system: ververica-platform
+      annotations:
+        checksum/config: 741b75e845492397aed7fa24e222b1db163a1910a829ef72df60f0c9a009cb85
+        checksum/blobstoragesecret: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    spec:
+      serviceAccountName: vvp-ververica-platform
+      securityContext:
+        
+        fsGroup: 999
+      containers:
+        - name: appmanager
+          image: registry.ververica.com/v2.7/vvp-appmanager:2.7.0
+          imagePullPolicy: "Always"
+          env:
+            - name: spring.profiles.active
+              value: prod,prod-user
+            - name: spring.config.additional-location
+              value: file:/vvp/etc/
+          ports:
+            - name: http
+              containerPort: 9080
+            - name: management
+              containerPort: 9081
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: management
+            initialDelaySeconds: 90
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: management
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+          resources:
+          
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 1Gi
+          volumeMounts:
+          - name: config
+            mountPath: /vvp/etc
+            readOnly: true
+          - name: blob-storage-creds
+            mountPath: /vvp/secrets/blob-storage-creds
+            readOnly: true
+          - name: data
+            mountPath: /vvp/data
+            subPath: ""
+        - name: gateway
+          image: registry.ververica.com/v2.7/vvp-gateway:2.7.0
+          imagePullPolicy: "Always"
+          env:
+          - name: spring.profiles.active
+            value: prod,prod-defaults,prod-user
+          - name: spring.config.additional-location
+            value: file:/vvp/etc/
+          ports:
+          - name: http
+            containerPort: 8080
+          - name: management
+            containerPort: 8081
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: management
+            initialDelaySeconds: 90
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: management
+            initialDelaySeconds: 10
+          resources:
+            
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 250m
+              memory: 2Gi
+          volumeMounts:
+          - name: config
+            mountPath: /vvp/etc
+            readOnly: true
+          - name: blob-storage-creds
+            mountPath: /vvp/secrets/blob-storage-creds
+            readOnly: true
+          - name: saml-creds
+            mountPath: /vvp/secrets/saml-creds
+            readOnly: true
+          - name: data
+            mountPath: /vvp/data
+            subPath: ""
+        - name: ui
+          image: registry.ververica.com/v2.7/vvp-ui:2.7.0
+          imagePullPolicy: "Always"
+          ports:
+          - name: http
+            containerPort: 4200
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            
+            limits:
+              cpu: 100m
+              memory: 32Mi
+            requests:
+              cpu: 100m
+              memory: 32Mi
+      volumes:
+        - name: config
+          configMap:
+            name: vvp-ververica-platform-config
+        - name: blob-storage-creds
+          emptyDir: {}
+        - name: saml-creds
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: vvp-ververica-platform
