@@ -3,7 +3,7 @@ https://docs.astronomer.io/software <br />
 ➜ helm repo add astronomer https://helm.astronomer.io <br />
 ➜ helm search repo  astronomer <br />
 NAME                            CHART VERSION   APP VERSION     DESCRIPTION <br />                                       
-astronomer/astronomer           0.30.3          0.30.3          Helm chart to deploy the Astronomer Platform... <br />      
+astronomer/astronomer           0.30.3          0.30.3          Helm chart to deploy the Astronomer Platform...<br />      
 astronomer/airflow              1.7.1           2.0.0           Helm chart to deploy the Astronomer Platform Ai... <br />
 astronomer/airflow-operator     0.4.0           0.4.0           2022-10-04T14:28:21+0000  https://circleci.com/... <br />
 astronomer/alertmanager         0.11.0                          A Helm chart to deploy the Astronomer Platform ... <br />
