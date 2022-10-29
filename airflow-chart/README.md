@@ -1,22 +1,18 @@
 
-https://airflow.apache.org/docs/helm-chart/stable/index.html \n
-https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database
-https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html
+https://airflow.apache.org/docs/helm-chart/stable/index.html <br />
+https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database. <br />html#setting-up-a-postgresql-database <br />
+https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html <br />
 
 
-➜ helm repo add apache-airflow https://airflow.apache.org
-
-➜ helm search repo  apache-airflow
-
-➜ helm fetch --version 1.7.0 apache-airflow/airflow
+➜ helm repo add apache-airflow https://airflow.apache.org <br />
+➜ helm search repo  apache-airflow <br />
+➜ helm fetch --version 1.7.0 apache-airflow/airflow <br />
 
 ➜ helm template . --name-template airflow -f values.yaml --output-dir '/Users/luis.costa/projects/stuff/batatas/➜ yamls'
 
 or 
 
-➜ helm template . --name-template airflow -n airflow -f values.yaml > ~/projects/stuff/eks/airflow.yaml
-
-
+➜ helm template . --name-template airflow -n airflow -f values.yaml > ~/projects/stuff/eks/airflow.yaml<br />
 ➜ kubectl apply --namespace airflow -f /Users/luis.costa/projects/stuff/eks/airflow-chart/airflow.yaml
 
 serviceaccount/airflow-create-user-job unchanged
