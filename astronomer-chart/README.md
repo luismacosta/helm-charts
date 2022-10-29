@@ -1,3 +1,4 @@
+https://docs.astronomer.io/software <br />
 
 ➜ helm repo add astronomer https://helm.astronomer.io <br />
 ➜ helm search repo  astronomer <br />
@@ -17,7 +18,7 @@ astronomer/prometheus           0.11.0                          Helm chart to de
 ➜ helm fetch --version 0.30.3 astronomer/astronomer <br />
 ➜ helm template . --name-template astronomer -n astronomer -f values.yaml > ~/projects/stuff/eks/astronomer.yaml <br />
 
-***Default***
+***Default*** <br />
 ➜ kubectl apply -n astronomer -f /Users/luis.costa/projects/stuff/eks/astronomer.yaml <br />
 
 networkpolicy.networking.k8s.io/astronomer-alertmanager-policy created <br />
@@ -158,7 +159,7 @@ job.batch/astronomer-houston-upgrade-deployments created <br />
 
 
 
-***No logging + monitoring +  nodeExporter***
+***No logging + monitoring +  nodeExporter*** <br />
 ➜ kubectl apply -n astronomer -f /Users/luis.costa/projects/stuff/eks/astronomer.yaml <br />    
 
 networkpolicy.networking.k8s.io/astronomer-astro-ui-policy created <br />
